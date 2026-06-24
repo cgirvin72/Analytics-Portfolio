@@ -2,7 +2,7 @@
 
 A Power BI-styled interactive dashboard analyzing a synthetic enterprise vendor consolidation program across Finance, Risk, and Operations departments.
 
-**Live demo:** _(add your deployed Vercel URL here once live)_
+**Live demo:** [analytics-portfolio-five.vercel.app](https://analytics-portfolio-five.vercel.app/)
 
 ## What this is
 
