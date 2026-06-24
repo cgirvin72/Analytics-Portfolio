@@ -1,0 +1,1698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vendor Consolidation Analysis — Power BI Dashboard</title>
+<style>
+  :root {
+    --pbi-blue: #118DFF;
+    --pbi-navy: #12239E;
+    --pbi-orange: #E66C37;
+    --pbi-purple: #6B007B;
+    --pbi-pink: #E044A7;
+    --pbi-violet: #744EC2;
+    --pbi-gold: #D9B300;
+    --pbi-red: #D64550;
+    --pbi-green: #107C10;
+    --bg-canvas: #F3F2F1;
+    --bg-card: #FFFFFF;
+    --bg-header: #FAF9F8;
+    --border-light: #E1DFDD;
+    --text-primary: #201F1E;
+    --text-secondary: #605E5C;
+    --text-tertiary: #8A8886;
+    --shadow-card: 0 1.2px 3.6px rgba(0,0,0,0.08), 0 0.3px 0.9px rgba(0,0,0,0.06);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg-canvas);
+    color: var(--text-primary);
+    font-size: 13px;
+  }
+
+  /* ===== Report Header / Page Tabs ===== */
+  .report-header {
+    background: var(--pbi-navy);
+    color: white;
+    padding: 14px 24px 0 24px;
+  }
+  .report-title-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding-bottom: 10px;
+  }
+  .report-title {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.1px;
+  }
+  .report-subtitle {
+    font-size: 11.5px;
+    color: #C7CCEE;
+    margin-top: 2px;
+  }
+  .report-meta {
+    font-size: 11px;
+    color: #9AA1DE;
+    text-align: right;
+  }
+  .page-tabs {
+    display: flex;
+    gap: 2px;
+  }
+  .page-tab {
+    padding: 9px 18px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #C7CCEE;
+    cursor: pointer;
+    border-radius: 4px 4px 0 0;
+    background: rgba(255,255,255,0.04);
+    transition: background 0.15s, color 0.15s;
+    user-select: none;
+  }
+  .page-tab:hover { background: rgba(255,255,255,0.10); color: #fff; }
+  .page-tab.active {
+    background: var(--bg-canvas);
+    color: var(--pbi-navy);
+  }
+
+  /* ===== Main Layout ===== */
+  .report-body {
+    display: flex;
+    min-height: calc(100vh - 84px);
+  }
+
+  /* ===== Slicer Panel ===== */
+  .slicer-panel {
+    width: 200px;
+    flex-shrink: 0;
+    background: var(--bg-card);
+    border-right: 1px solid var(--border-light);
+    padding: 16px 14px;
+  }
+  .slicer-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+  }
+  .slicer-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 9px;
+    border-radius: 3px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    cursor: pointer;
+    margin-bottom: 2px;
+    border: 1px solid transparent;
+    transition: background 0.12s;
+  }
+  .slicer-item:hover { background: #F3F2F1; }
+  .slicer-item.selected {
+    background: #EBF3FC;
+    border-color: var(--pbi-blue);
+    color: var(--pbi-navy);
+    font-weight: 600;
+  }
+  .slicer-dot {
+    width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0;
+  }
+  .slicer-clear {
+    font-size: 11.5px;
+    color: var(--pbi-blue);
+    cursor: pointer;
+    margin-top: 10px;
+    font-weight: 600;
+  }
+  .slicer-clear:hover { text-decoration: underline; }
+  .slicer-hint {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-top: 16px;
+    line-height: 1.5;
+    border-top: 1px solid var(--border-light);
+    padding-top: 12px;
+  }
+
+  /* ===== Canvas / Pages ===== */
+  .canvas {
+    flex: 1;
+    padding: 18px 22px;
+    overflow-x: hidden;
+  }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .kpi-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    box-shadow: var(--shadow-card);
+    padding: 14px 16px;
+  }
+  .kpi-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 6px;
+  }
+  .kpi-value {
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--pbi-navy);
+    line-height: 1.1;
+  }
+  .kpi-value.green { color: var(--pbi-green); }
+  .kpi-sub {
+    font-size: 11.5px;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+  }
+
+  .viz-row {
+    display: grid;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .viz-row.cols-2 { grid-template-columns: 1.3fr 1fr; }
+  .viz-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+  .viz-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    box-shadow: var(--shadow-card);
+    padding: 14px 16px 18px 16px;
+  }
+  .viz-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+  }
+  .viz-subtitle {
+    font-size: 10.5px;
+    color: var(--text-tertiary);
+    margin-bottom: 10px;
+  }
+
+  /* ===== Bar chart (custom CSS/SVG) ===== */
+  .bar-chart { width: 100%; }
+  .bar-row { display: flex; align-items: center; margin-bottom: 9px; gap: 8px; }
+  .bar-label { width: 84px; font-size: 11.5px; color: var(--text-secondary); flex-shrink: 0; text-align: right; }
+  .bar-track { flex: 1; background: #F3F2F1; border-radius: 2px; height: 20px; position: relative; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s ease; display: flex; align-items: center; }
+  .bar-value { font-size: 11px; color: white; font-weight: 600; padding-left: 7px; white-space: nowrap; }
+  .bar-value.outside { color: var(--text-primary); padding-left: 0; margin-left: 6px; }
+
+  /* ===== Department bars (clickable, cross-filter) ===== */
+  .dept-bar-item { cursor: pointer; }
+  .dept-bar-item:hover .bar-fill { filter: brightness(1.08); }
+  .dept-bar-item.dimmed .bar-fill { opacity: 0.32; }
+  .dept-bar-item.dimmed .bar-label { opacity: 0.45; }
+
+  /* ===== Table ===== */
+  table.pbi-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  table.pbi-table th {
+    text-align: right;
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.2px;
+    padding: 6px 8px;
+    border-bottom: 2px solid var(--border-light);
+    background: var(--bg-header);
+  }
+  table.pbi-table th:first-child { text-align: left; }
+  table.pbi-table td {
+    padding: 6px 8px;
+    text-align: right;
+    border-bottom: 1px solid #F0EFEE;
+    color: var(--text-primary);
+  }
+  table.pbi-table td:first-child { text-align: left; font-weight: 500; }
+  table.pbi-table tr.clickable { cursor: pointer; }
+  table.pbi-table tr.clickable:hover { background: #F8FAFE; }
+  table.pbi-table tr.total-row td { font-weight: 700; border-top: 2px solid var(--border-light); border-bottom: none; }
+  .variance-pos { color: var(--pbi-red); font-weight: 600; }
+  .variance-neg { color: var(--pbi-green); font-weight: 600; }
+
+  /* ===== Matrix heatmap ===== */
+  .matrix-wrap { overflow-x: auto; }
+  table.matrix-table { border-collapse: collapse; font-size: 10.8px; width: 100%; }
+  table.matrix-table th {
+    font-size: 10px; font-weight: 600; color: var(--text-secondary);
+    padding: 5px 6px; text-align: center; border-bottom: 1.5px solid var(--border-light);
+    white-space: nowrap;
+  }
+  table.matrix-table th.row-head { text-align: left; min-width: 150px; }
+  table.matrix-table td {
+    padding: 5px 6px; text-align: center; font-weight: 600; color: white;
+    cursor: pointer; transition: outline 0.1s;
+  }
+  table.matrix-table td.row-label {
+    text-align: left; color: var(--text-primary); font-weight: 500; background: var(--bg-card) !important;
+    cursor: default;
+  }
+  table.matrix-table td:hover:not(.row-label) { outline: 2px solid var(--pbi-navy); outline-offset: -2px; }
+
+  /* ===== Drill-through hint chip ===== */
+  .drill-chip {
+    display: inline-block;
+    font-size: 10px;
+    background: #EBF3FC;
+    color: var(--pbi-blue);
+    border: 1px solid #C7E0F4;
+    border-radius: 10px;
+    padding: 2px 9px;
+    margin-left: 8px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .drill-chip:hover { background: #D5E9FB; }
+
+  /* ===== Scenario selector pills ===== */
+  .scenario-pills { display: flex; gap: 8px; margin-bottom: 14px; }
+  .scenario-pill {
+    flex: 1;
+    background: var(--bg-card);
+    border: 2px solid var(--border-light);
+    border-radius: 4px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .scenario-pill:hover { border-color: #BFD9F5; }
+  .scenario-pill.active { border-color: var(--pbi-blue); background: #F5FAFF; }
+  .scenario-pill .sp-name { font-size: 12.5px; font-weight: 700; color: var(--text-primary); }
+  .scenario-pill .sp-tag { font-size: 10px; color: var(--pbi-blue); font-weight: 600; }
+  .scenario-pill.recommended { position: relative; }
+  .scenario-pill.recommended::after {
+    content: "RECOMMENDED";
+    position: absolute; top: -8px; right: 10px;
+    background: var(--pbi-green); color: white; font-size: 8.5px; font-weight: 700;
+    padding: 2px 6px; border-radius: 8px; letter-spacing: 0.3px;
+  }
+
+  /* ===== Line chart (SVG) ===== */
+  .line-chart-svg { width: 100%; height: 220px; }
+
+  /* ===== Breadcrumb (drill-through) ===== */
+  .breadcrumb {
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .breadcrumb a { color: var(--pbi-blue); cursor: pointer; font-weight: 600; }
+  .breadcrumb a:hover { text-decoration: underline; }
+
+  .empty-state {
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: 12px;
+    padding: 40px 20px;
+  }
+
+  .legend-row { display: flex; gap: 16px; margin-top: 8px; font-size: 11px; color: var(--text-secondary); }
+  .legend-dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+
+  ::-webkit-scrollbar { height: 8px; width: 8px; }
+  ::-webkit-scrollbar-thumb { background: #C8C6C4; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<div class="report-header">
+  <div class="report-title-row">
+    <div>
+      <div class="report-title">Vendor Consolidation Analysis</div>
+      <div class="report-subtitle">Enterprise Cost Optimization — Finance, Risk &amp; Operations | Synthetic demonstration data</div>
+    </div>
+    <div class="report-meta">FY2022–FY2023<br>$ in millions unless noted</div>
+  </div>
+  <div class="page-tabs" id="pageTabs">
+    <div class="page-tab active" data-page="overview">Executive Overview</div>
+    <div class="page-tab" data-page="variance">Variance Deep-Dive</div>
+    <div class="page-tab" data-page="scenarios">Scenario Comparison</div>
+    <div class="page-tab" data-page="drillthrough">Drill-Through Detail</div>
+  </div>
+</div>
+
+<div class="report-body">
+  <div class="slicer-panel">
+    <div class="slicer-title">Department</div>
+    <div id="slicerList"></div>
+    <div class="slicer-clear" id="slicerClear">Clear selection</div>
+    <div class="slicer-hint">Click a department to cross-filter every visual on this page. Click a bar or matrix cell to drill through to monthly detail.</div>
+  </div>
+
+  <div class="canvas" id="canvas"></div>
+</div>
+
+<script>
+const DASHBOARD_DATA = {
+  "months": [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec"
+  ],
+  "execSummary": {
+    "totalSavings": 180.4,
+    "vendorsFrom": 47,
+    "vendorsTo": 18,
+    "auditEscalations": 0,
+    "stakeholders": "150+",
+    "departments": [
+      {
+        "name": "Finance",
+        "baseline": 142.3,
+        "postConsolidation": 102.8,
+        "savings": 39.5,
+        "savingsPct": 0.2776
+      },
+      {
+        "name": "Risk",
+        "baseline": 98.7,
+        "postConsolidation": 76.4,
+        "savings": 22.3,
+        "savingsPct": 0.2259
+      },
+      {
+        "name": "Operations",
+        "baseline": 187.6,
+        "postConsolidation": 149.0,
+        "savings": 38.6,
+        "savingsPct": 0.2058
+      }
+    ]
+  },
+  "departments": {
+    "Finance": {
+      "department": "Finance",
+      "categories": [
+        {
+          "category": "Vendor Licensing",
+          "budget": [
+            2335,
+            860,
+            1460,
+            1336,
+            2568,
+            2424,
+            2941,
+            1009,
+            1813,
+            872,
+            1325,
+            2013
+          ],
+          "actual": [
+            2556.8,
+            845.4,
+            1534.5,
+            1334.7,
+            2832.5,
+            2453.1,
+            2861.6,
+            977.7,
+            1871.0,
+            848.5,
+            1374.0,
+            2214.3
+          ],
+          "budgetFY": 20956,
+          "actualFY": 21704.0
+        },
+        {
+          "category": "Professional Services",
+          "budget": [
+            864,
+            1277,
+            2360,
+            2108,
+            1329,
+            2214,
+            2743,
+            816,
+            2734,
+            2476,
+            1617,
+            1173
+          ],
+          "actual": [
+            864,
+            1231.0,
+            2643.2,
+            2154.4,
+            1246.6,
+            2056.8,
+            2583.9,
+            852.7,
+            2947.3,
+            2485.9,
+            1508.7,
+            1168.3
+          ],
+          "budgetFY": 21711,
+          "actualFY": 21742.8
+        },
+        {
+          "category": "Software & Platforms",
+          "budget": [
+            3097,
+            1608,
+            1023,
+            1032,
+            2834,
+            2249,
+            2737,
+            2551,
+            2087,
+            3135,
+            1708,
+            2125
+          ],
+          "actual": [
+            3465.5,
+            1649.8,
+            1139.6,
+            1126.9,
+            2612.9,
+            2392.9,
+            2890.3,
+            2619.9,
+            2030.7,
+            3285.5,
+            1608.9,
+            2139.9
+          ],
+          "budgetFY": 26186,
+          "actualFY": 26962.9
+        },
+        {
+          "category": "Infrastructure & Hosting",
+          "budget": [
+            2791,
+            2284,
+            2868,
+            2186,
+            2491,
+            910,
+            1347,
+            1495,
+            992,
+            1359,
+            1042,
+            1467
+          ],
+          "actual": [
+            2821.7,
+            2537.5,
+            3140.5,
+            2127.0,
+            2540.8,
+            870.0,
+            1485.7,
+            1635.5,
+            972.2,
+            1424.2,
+            1085.8,
+            1395.1
+          ],
+          "budgetFY": 21232,
+          "actualFY": 22036.0
+        },
+        {
+          "category": "Contracted Labor",
+          "budget": [
+            2326,
+            1676,
+            1688,
+            1303,
+            1441,
+            3048,
+            2355,
+            2262,
+            1211,
+            2550,
+            1192,
+            1711
+          ],
+          "actual": [
+            2495.8,
+            1722.9,
+            1816.3,
+            1336.9,
+            1325.7,
+            3002.3,
+            2176.0,
+            2501.8,
+            1327.3,
+            2769.3,
+            1170.5,
+            1594.7
+          ],
+          "budgetFY": 22763,
+          "actualFY": 23239.4
+        },
+        {
+          "category": "Miscellaneous Vendor",
+          "budget": [
+            3175,
+            2336,
+            2137,
+            2443,
+            2823,
+            2662,
+            1350,
+            877,
+            1557,
+            1443,
+            1306,
+            3063
+          ],
+          "actual": [
+            3479.8,
+            2590.6,
+            2002.4,
+            2484.5,
+            2636.7,
+            2853.7,
+            1448.5,
+            829.6,
+            1580.4,
+            1486.3,
+            1270.7,
+            3350.9
+          ],
+          "budgetFY": 25172,
+          "actualFY": 26014.2
+        }
+      ]
+    },
+    "Risk": {
+      "department": "Risk",
+      "categories": [
+        {
+          "category": "Vendor Licensing",
+          "budget": [
+            1620,
+            597,
+            1013,
+            927,
+            1781,
+            1681,
+            2040,
+            700,
+            1258,
+            605,
+            919,
+            1396
+          ],
+          "actual": [
+            1752.8,
+            582.7,
+            1080.9,
+            937.2,
+            1943.1,
+            1650.7,
+            2127.7,
+            663.6,
+            1293.2,
+            593.5,
+            969.5,
+            1517.5
+          ],
+          "budgetFY": 14537,
+          "actualFY": 15112.4
+        },
+        {
+          "category": "Professional Services",
+          "budget": [
+            599,
+            886,
+            1637,
+            1462,
+            922,
+            1536,
+            1903,
+            566,
+            1896,
+            1717,
+            1122,
+            814
+          ],
+          "actual": [
+            667.9,
+            914.4,
+            1569.9,
+            1576.0,
+            939.5,
+            1439.2,
+            2081.9,
+            577.9,
+            1824.0,
+            1797.7,
+            1108.5,
+            840.9
+          ],
+          "budgetFY": 15060,
+          "actualFY": 15337.7
+        },
+        {
+          "category": "Software & Platforms",
+          "budget": [
+            2148,
+            1115,
+            710,
+            716,
+            1966,
+            1560,
+            1898,
+            1769,
+            1448,
+            2174,
+            1185,
+            1474
+          ],
+          "actual": [
+            2090.0,
+            1213.1,
+            748.3,
+            702.4,
+            2168.5,
+            1624.0,
+            1835.4,
+            1903.4,
+            1472.6,
+            2078.3,
+            1258.5,
+            1487.3
+          ],
+          "budgetFY": 18163,
+          "actualFY": 18581.8
+        },
+        {
+          "category": "Infrastructure & Hosting",
+          "budget": [
+            1936,
+            1584,
+            1989,
+            1516,
+            1728,
+            631,
+            934,
+            1037,
+            688,
+            943,
+            723,
+            1018
+          ],
+          "actual": [
+            2011.5,
+            1503.2,
+            2211.8,
+            1550.9,
+            1700.4,
+            684.0,
+            959.2,
+            996.6,
+            752.0,
+            953.4,
+            702.8,
+            1084.2
+          ],
+          "budgetFY": 14727,
+          "actualFY": 15109.8
+        },
+        {
+          "category": "Contracted Labor",
+          "budget": [
+            1613,
+            1162,
+            1171,
+            904,
+            999,
+            2114,
+            1633,
+            1569,
+            840,
+            1769,
+            827,
+            1187
+          ],
+          "actual": [
+            1721.1,
+            1182.9,
+            1085.5,
+            941.1,
+            1084.9,
+            2063.3,
+            1717.9,
+            1617.6,
+            800.5,
+            1926.4,
+            837.8,
+            1120.5
+          ],
+          "budgetFY": 15788,
+          "actualFY": 16099.5
+        },
+        {
+          "category": "Miscellaneous Vendor",
+          "budget": [
+            2202,
+            1620,
+            1482,
+            1694,
+            1958,
+            1846,
+            936,
+            608,
+            1080,
+            1001,
+            906,
+            2125
+          ],
+          "actual": [
+            2298.9,
+            1767.4,
+            1440.5,
+            1800.7,
+            1799.4,
+            1914.3,
+            1003.4,
+            596.4,
+            1131.8,
+            1027.0,
+            868.9,
+            2301.4
+          ],
+          "budgetFY": 17458,
+          "actualFY": 17950.2
+        }
+      ]
+    },
+    "Operations": {
+      "department": "Operations",
+      "categories": [
+        {
+          "category": "Vendor Licensing",
+          "budget": [
+            3078,
+            1134,
+            1925,
+            1761,
+            3386,
+            3196,
+            3877,
+            1330,
+            2390,
+            1150,
+            1747,
+            2654
+          ],
+          "actual": [
+            3235.0,
+            1090.9,
+            2105.9,
+            1808.5,
+            3165.9,
+            3461.3,
+            3939.0,
+            1274.1,
+            2559.7,
+            1188.0,
+            1713.8,
+            2951.2
+          ],
+          "budgetFY": 27628,
+          "actualFY": 28493.4
+        },
+        {
+          "category": "Professional Services",
+          "budget": [
+            1139,
+            1684,
+            3111,
+            2779,
+            1752,
+            2919,
+            3616,
+            1076,
+            3604,
+            3264,
+            2132,
+            1546
+          ],
+          "actual": [
+            1117.4,
+            1806.9,
+            3229.2,
+            2628.9,
+            1911.4,
+            2983.2,
+            3858.3,
+            1042.6,
+            3777.0,
+            3316.2,
+            1955.0,
+            1614.0
+          ],
+          "budgetFY": 28622,
+          "actualFY": 29240.3
+        },
+        {
+          "category": "Software & Platforms",
+          "budget": [
+            4083,
+            2120,
+            1349,
+            1361,
+            3736,
+            2965,
+            3608,
+            3363,
+            2751,
+            4133,
+            2252,
+            2801
+          ],
+          "actual": [
+            4438.2,
+            2149.7,
+            1278.9,
+            1491.7,
+            3840.6,
+            2855.3,
+            3900.2,
+            3507.6,
+            2679.5,
+            4372.7,
+            2272.3,
+            2602.1
+          ],
+          "budgetFY": 34522,
+          "actualFY": 35388.8
+        },
+        {
+          "category": "Infrastructure & Hosting",
+          "budget": [
+            3679,
+            3011,
+            3781,
+            2882,
+            3284,
+            1200,
+            1776,
+            1971,
+            1308,
+            1792,
+            1374,
+            1934
+          ],
+          "actual": [
+            3763.6,
+            3324.1,
+            3626.0,
+            2931.0,
+            3533.6,
+            1136.4,
+            1845.3,
+            2144.4,
+            1276.6,
+            1876.2,
+            1416.6,
+            1802.5
+          ],
+          "budgetFY": 27992,
+          "actualFY": 28676.3
+        },
+        {
+          "category": "Contracted Labor",
+          "budget": [
+            3066,
+            2210,
+            2225,
+            1718,
+            1900,
+            4018,
+            3105,
+            2982,
+            1597,
+            3362,
+            1571,
+            2256
+          ],
+          "actual": [
+            3354.2,
+            2150.3,
+            2365.2,
+            1783.3,
+            1727.1,
+            4086.3,
+            3266.5,
+            2850.8,
+            1729.6,
+            3432.6,
+            1677.8,
+            2168.0
+          ],
+          "budgetFY": 30010,
+          "actualFY": 30591.6
+        },
+        {
+          "category": "Miscellaneous Vendor",
+          "budget": [
+            4186,
+            3080,
+            2817,
+            3221,
+            3722,
+            3509,
+            1780,
+            1156,
+            2053,
+            1902,
+            1722,
+            4038
+          ],
+          "actual": [
+            4047.9,
+            3344.9,
+            2876.2,
+            3404.6,
+            3543.3,
+            3835.3,
+            1804.9,
+            1084.3,
+            2211.1,
+            1976.2,
+            1692.7,
+            4445.8
+          ],
+          "budgetFY": 33186,
+          "actualFY": 34267.2
+        }
+      ]
+    }
+  },
+  "scenarios": {
+    "A": {
+      "label": "Conservative",
+      "vendorsFrom": 47,
+      "vendorsTo": 28,
+      "grossSavings": 142.0,
+      "tcPct": 0.15,
+      "totalTC": 21.3,
+      "y1Net": 72.42,
+      "y2Net": 100.536,
+      "y3Net": 125.244,
+      "cumulative": 298.2,
+      "contingency": 4.0,
+      "netProgramValue": 294.2,
+      "roi": 14.0,
+      "breakEven": 4
+    },
+    "B": {
+      "label": "Base Case \u2014 Recommended",
+      "vendorsFrom": 47,
+      "vendorsTo": 18,
+      "grossSavings": 180.4,
+      "tcPct": 0.12,
+      "totalTC": 21.648,
+      "y1Net": 140.351,
+      "y2Net": 147.279,
+      "y3Net": 177.802,
+      "cumulative": 465.432,
+      "contingency": 2.5,
+      "netProgramValue": 462.932,
+      "roi": 21.5,
+      "breakEven": 2
+    },
+    "C": {
+      "label": "Aggressive",
+      "vendorsFrom": 47,
+      "vendorsTo": 12,
+      "grossSavings": 208.7,
+      "tcPct": 0.18,
+      "totalTC": 37.566,
+      "y1Net": 165.29,
+      "y2Net": 187.747,
+      "y3Net": 204.192,
+      "cumulative": 557.229,
+      "contingency": 1.8,
+      "netProgramValue": 555.429,
+      "roi": 14.8,
+      "breakEven": 3
+    }
+  }
+};
+</script>
+<script>
+// ===================== STATE =====================
+const STATE = {
+  currentPage: 'overview',
+  selectedDept: null, // null = all departments
+  drillDept: null,
+  drillCategory: null,
+};
+
+const DEPT_COLORS = {
+  'Finance': '#118DFF',
+  'Risk': '#E66C37',
+  'Operations': '#744EC2'
+};
+
+const CAT_COLORS = [
+  '#118DFF', '#E66C37', '#744EC2', '#D9B300', '#D64550', '#107C10'
+];
+
+const fmtM = (v, decimals=1) => `$${v.toFixed(decimals)}M`;
+const fmtK = (v) => `$${Math.round(v).toLocaleString()}K`;
+const fmtPct = (v, decimals=1) => `${(v*100).toFixed(decimals)}%`;
+const fmtPctSigned = (v, decimals=1) => `${v >= 0 ? '+' : ''}${(v*100).toFixed(decimals)}%`;
+
+function sum(arr) { return arr.reduce((a,b)=>a+b, 0); }
+
+// ===================== NAVIGATION =====================
+document.querySelectorAll('.page-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.page-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    STATE.currentPage = tab.dataset.page;
+    renderCanvas();
+  });
+});
+
+document.getElementById('slicerClear').addEventListener('click', () => {
+  STATE.selectedDept = null;
+  renderAll();
+});
+
+// ===================== SLICER PANEL =====================
+function renderSlicer() {
+  const list = document.getElementById('slicerList');
+  list.innerHTML = '';
+  const depts = Object.keys(DASHBOARD_DATA.departments);
+  depts.forEach(dept => {
+    const item = document.createElement('div');
+    item.className = 'slicer-item' + (STATE.selectedDept === dept ? ' selected' : '');
+    item.innerHTML = `<span class="slicer-dot" style="background:${DEPT_COLORS[dept]}"></span>${dept}`;
+    item.addEventListener('click', () => {
+      STATE.selectedDept = STATE.selectedDept === dept ? null : dept;
+      renderAll();
+    });
+    list.appendChild(item);
+  });
+}
+
+function renderAll() {
+  renderSlicer();
+  renderCanvas();
+}
+
+// ===================== PAGE: VARIANCE DEEP-DIVE =====================
+function computeVariancePct(dept, catIdx, monthIdx) {
+  const cat = DASHBOARD_DATA.departments[dept].categories[catIdx];
+  const b = cat.budget[monthIdx];
+  const a = cat.actual[monthIdx];
+  return (a - b) / b;
+}
+
+function varianceColor(pct) {
+  // pct ranges roughly -0.12 to +0.12. Green = favorable (negative/underspend), Red = overspend
+  const clamped = Math.max(-0.12, Math.min(0.12, pct));
+  const t = (clamped + 0.12) / 0.24; // 0 = most negative (green), 1 = most positive (red)
+  // interpolate green -> white -> red
+  let r,g,b;
+  if (t < 0.5) {
+    const k = t / 0.5;
+    r = Math.round(16 + (255-16)*k);
+    g = Math.round(124 + (255-124)*k);
+    b = Math.round(16 + (255-16)*k);
+  } else {
+    const k = (t-0.5)/0.5;
+    r = Math.round(255 + (214-255)*k);
+    g = Math.round(255 + (69-255)*k);
+    b = Math.round(255 + (80-255)*k);
+  }
+  return `rgb(${r},${g},${b})`;
+}
+
+function renderVariancePage() {
+  const depts = getActiveDepartments();
+  const months = DASHBOARD_DATA.months;
+
+  // Build matrix rows: one row per department+category combo, columns = months
+  let matrixRows = '';
+  depts.forEach(dept => {
+    const categories = DASHBOARD_DATA.departments[dept].categories;
+    categories.forEach((cat, ci) => {
+      let cells = `<td class="row-label">${dept} — ${cat.category}</td>`;
+      months.forEach((m, mi) => {
+        const pct = computeVariancePct(dept, ci, mi);
+        const color = varianceColor(pct);
+        const textColor = Math.abs(pct) > 0.06 ? 'white' : '#3a3a3a';
+        cells += `<td style="background:${color}; color:${textColor};" data-dept="${dept}" data-cat="${ci}" data-month="${mi}" title="${dept} / ${cat.category} / ${m}: ${fmtPctSigned(pct)}">${fmtPctSigned(pct,0)}</td>`;
+      });
+      matrixRows += `<tr>${cells}</tr>`;
+    });
+  });
+
+  const monthHeaders = months.map(m => `<th>${m}</th>`).join('');
+
+  // FY totals comparison chart (budget vs actual by department)
+  const fyCompareBars = depts.map(dept => {
+    const categories = DASHBOARD_DATA.departments[dept].categories;
+    const budgetTotal = sum(categories.map(c => c.budgetFY));
+    const actualTotal = sum(categories.map(c => c.actualFY));
+    const maxVal = Math.max(...Object.keys(DASHBOARD_DATA.departments).map(d => {
+      const cats = DASHBOARD_DATA.departments[d].categories;
+      return Math.max(sum(cats.map(c=>c.budgetFY)), sum(cats.map(c=>c.actualFY)));
+    }));
+    const bWidth = (budgetTotal / maxVal) * 100;
+    const aWidth = (actualTotal / maxVal) * 100;
+    const varPct = (actualTotal - budgetTotal) / budgetTotal;
+    return `
+      <div style="margin-bottom:14px;">
+        <div style="font-size:12px; font-weight:600; margin-bottom:5px; display:flex; justify-content:space-between;">
+          <span>${dept}</span>
+          <span class="${varPct >= 0 ? 'variance-pos' : 'variance-neg'}">${fmtPctSigned(varPct)}</span>
+        </div>
+        <div class="bar-row" style="margin-bottom:3px;">
+          <div class="bar-label" style="width:50px;">Budget</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${bWidth}%; background:#C7CCEE;"><span class="bar-value outside">${fmtK(budgetTotal)}</span></div></div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label" style="width:50px;">Actual</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${aWidth}%; background:${DEPT_COLORS[dept]};"><span class="bar-value outside">${fmtK(actualTotal)}</span></div></div>
+        </div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="viz-row cols-2">
+      <div class="viz-card">
+        <div class="viz-title">FY Budget vs. Actual by Department</div>
+        <div class="viz-subtitle">$000s, full-year totals across all 6 cost categories${STATE.selectedDept ? ' — filtered to ' + STATE.selectedDept : ''}</div>
+        ${fyCompareBars}
+      </div>
+      <div class="viz-card">
+        <div class="viz-title">Reading the Matrix</div>
+        <div class="viz-subtitle">How to interpret the heatmap on the right</div>
+        <div style="font-size:12px; line-height:1.7; color:var(--text-secondary);">
+          Each cell shows monthly variance % (Actual vs. Budget) for one cost category within one department.
+          <br><br>
+          <span class="legend-dot" style="background:#107C10"></span> Green = favorable (under budget)<br>
+          <span class="legend-dot" style="background:#D64550"></span> Red = unfavorable (over budget)<br><br>
+          Click any cell to drill through to that category's full monthly trend.
+        </div>
+      </div>
+    </div>
+
+    <div class="viz-card">
+      <div class="viz-title">Variance % Heatmap — Department × Cost Category × Month</div>
+      <div class="viz-subtitle">${depts.length === 1 ? STATE.selectedDept + ' only (slicer applied)' : 'All departments — use the department slicer to focus on one'}</div>
+      <div class="matrix-wrap">
+        <table class="matrix-table">
+          <thead><tr><th class="row-head">Department / Category</th>${monthHeaders}</tr></thead>
+          <tbody>${matrixRows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+function renderCanvas() {
+  const canvas = document.getElementById('canvas');
+  if (STATE.currentPage === 'overview') canvas.innerHTML = renderOverviewPage();
+  else if (STATE.currentPage === 'variance') canvas.innerHTML = renderVariancePage();
+  else if (STATE.currentPage === 'scenarios') canvas.innerHTML = renderScenariosPage();
+  else if (STATE.currentPage === 'drillthrough') canvas.innerHTML = renderDrillthroughPage();
+  attachPageHandlers();
+}
+
+// ===================== FILTERED DATA HELPERS =====================
+function getActiveDepartments() {
+  const all = Object.keys(DASHBOARD_DATA.departments);
+  return STATE.selectedDept ? [STATE.selectedDept] : all;
+}
+
+function getFilteredExecDepartments() {
+  const depts = DASHBOARD_DATA.execSummary.departments;
+  return depts; // always show all, but dim non-selected via class
+}
+
+// ===================== PAGE: EXECUTIVE OVERVIEW =====================
+function renderOverviewPage() {
+  const exec = DASHBOARD_DATA.execSummary;
+  const depts = exec.departments;
+
+  // Compute filtered totals based on slicer
+  const activeDepts = STATE.selectedDept ? depts.filter(d => d.name === STATE.selectedDept) : depts;
+  const totalSavings = sum(activeDepts.map(d => d.savings));
+  const totalBaseline = sum(activeDepts.map(d => d.baseline));
+  const savingsPct = totalBaseline > 0 ? totalSavings / totalBaseline : 0;
+
+  const maxBaseline = Math.max(...depts.map(d => d.baseline));
+
+  const deptBars = depts.map(d => {
+    const dimmed = STATE.selectedDept && STATE.selectedDept !== d.name;
+    const widthPct = (d.baseline / maxBaseline) * 100;
+    return `
+      <div class="bar-row dept-bar-item${dimmed ? ' dimmed' : ''}" data-dept="${d.name}">
+        <div class="bar-label">${d.name}</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:${widthPct}%; background:${DEPT_COLORS[d.name]}">
+            <span class="bar-value">${fmtM(d.baseline)}</span>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  const savingsBars = depts.map(d => {
+    const dimmed = STATE.selectedDept && STATE.selectedDept !== d.name;
+    const maxSavings = Math.max(...depts.map(x => x.savings));
+    const widthPct = (d.savings / maxSavings) * 100;
+    return `
+      <div class="bar-row dept-bar-item${dimmed ? ' dimmed' : ''}" data-dept="${d.name}">
+        <div class="bar-label">${d.name}</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:${widthPct}%; background:${DEPT_COLORS[d.name]}">
+            <span class="bar-value">${fmtM(d.savings)} (${fmtPct(d.savingsPct)})</span>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  const tableRows = depts.map(d => {
+    const dimmed = STATE.selectedDept && STATE.selectedDept !== d.name;
+    return `
+      <tr class="clickable${dimmed ? ' dimmed' : ''}" data-dept="${d.name}" style="${dimmed ? 'opacity:0.4' : ''}">
+        <td><span class="slicer-dot" style="display:inline-block;background:${DEPT_COLORS[d.name]};margin-right:6px;"></span>${d.name}</td>
+        <td>${fmtM(d.baseline)}</td>
+        <td>${fmtM(d.postConsolidation)}</td>
+        <td>${fmtM(d.savings)}</td>
+        <td>${fmtPct(d.savingsPct)}</td>
+        <td>✓ Complete</td>
+      </tr>`;
+  }).join('');
+
+  const totalBaselineAll = sum(depts.map(d=>d.baseline));
+  const totalPostAll = sum(depts.map(d=>d.postConsolidation));
+  const totalSavingsAll = sum(depts.map(d=>d.savings));
+
+  return `
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Identified Savings</div>
+        <div class="kpi-value">${fmtM(totalSavings)}</div>
+        <div class="kpi-sub">${STATE.selectedDept ? STATE.selectedDept + ' only' : '+12.3% vs. Target'}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Vendors Consolidated</div>
+        <div class="kpi-value">${exec.vendorsFrom} → ${exec.vendorsTo}</div>
+        <div class="kpi-sub">62% reduction</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Audit Escalations</div>
+        <div class="kpi-value green">Zero</div>
+        <div class="kpi-sub">3-year record</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Stakeholders Aligned</div>
+        <div class="kpi-value">${exec.stakeholders}</div>
+        <div class="kpi-sub">Finance | Risk | Ops</div>
+      </div>
+    </div>
+
+    <div class="viz-row cols-2">
+      <div class="viz-card">
+        <div class="viz-title">Baseline Vendor Spend by Department</div>
+        <div class="viz-subtitle">Click a bar to cross-filter this page</div>
+        <div class="bar-chart">${deptBars}</div>
+      </div>
+      <div class="viz-card">
+        <div class="viz-title">Identified Savings by Department</div>
+        <div class="viz-subtitle">$M and % of department baseline</div>
+        <div class="bar-chart">${savingsBars}</div>
+      </div>
+    </div>
+
+    <div class="viz-card">
+      <div class="viz-title">Savings by Department <span class="drill-chip" data-goto-drill="true">Drill through →</span></div>
+      <div class="viz-subtitle">Baseline = FY2022 actual vendor spend. Post-consolidation = projected spend after vendor rationalization under Scenario B (62% reduction).</div>
+      <table class="pbi-table">
+        <thead>
+          <tr><th>Department</th><th>Baseline ($M)</th><th>Post-Consolidation ($M)</th><th>Savings ($M)</th><th>Savings %</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          ${tableRows}
+          <tr class="total-row">
+            <td>Total</td><td>${fmtM(totalBaselineAll)}</td><td>${fmtM(totalPostAll)}</td><td>${fmtM(totalSavingsAll)}</td><td>${fmtPct(totalSavingsAll/totalBaselineAll)}</td><td></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ===================== PAGE: SCENARIO COMPARISON =====================
+function renderScenariosPage() {
+  const scenarios = DASHBOARD_DATA.scenarios;
+  const selected = STATE.selectedScenario || 'B';
+  const order = ['A','B','C'];
+
+  const pills = order.map(key => {
+    const s = scenarios[key];
+    const isRec = key === 'B';
+    return `
+      <div class="scenario-pill${selected===key ? ' active' : ''}${isRec ? ' recommended' : ''}" data-scenario="${key}">
+        <div class="sp-name">Scenario ${key} — ${s.label.replace(' — Recommended','')}</div>
+        <div class="sp-tag">${s.vendorsFrom} → ${s.vendorsTo} vendors</div>
+      </div>`;
+  }).join('');
+
+  const maxROI = Math.max(...order.map(k => scenarios[k].roi));
+  const roiBars = order.map(key => {
+    const s = scenarios[key];
+    const dimmed = selected !== key;
+    const widthPct = (s.roi / maxROI) * 100;
+    const color = key === 'B' ? '#107C10' : (dimmed ? '#C7C6C4' : '#E66C37');
+    return `
+      <div class="bar-row" style="${dimmed ? 'opacity:0.5' : ''}">
+        <div class="bar-label">Scenario ${key}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${widthPct}%; background:${color};"><span class="bar-value">${s.roi.toFixed(1)}x</span></div></div>
+      </div>`;
+  }).join('');
+
+  const maxBreakeven = Math.max(...order.map(k => scenarios[k].breakEven));
+  const breakevenBars = order.map(key => {
+    const s = scenarios[key];
+    const dimmed = selected !== key;
+    const widthPct = (s.breakEven / maxBreakeven) * 100;
+    const color = key === 'B' ? '#107C10' : (dimmed ? '#C7C6C4' : '#E66C37');
+    return `
+      <div class="bar-row" style="${dimmed ? 'opacity:0.5' : ''}">
+        <div class="bar-label">Scenario ${key}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${widthPct}%; background:${color};"><span class="bar-value">${s.breakEven} mo</span></div></div>
+      </div>`;
+  }).join('');
+
+  const s = scenarios[selected];
+  const yearRows = ['y1Net','y2Net','y3Net'].map((key, i) => {
+    const maxY = Math.max(s.y1Net, s.y2Net, s.y3Net);
+    const width = (s[key] / maxY) * 100;
+    return `
+      <div class="bar-row">
+        <div class="bar-label">Year ${i+1}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${width}%; background:${DEPT_COLORS.Operations};"><span class="bar-value">${fmtM(s[key])}</span></div></div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="scenario-pills">${pills}</div>
+
+    <div class="viz-row cols-3">
+      <div class="viz-card">
+        <div class="viz-title">Gross Savings</div>
+        <div class="kpi-value" style="font-size:22px;">${fmtM(s.grossSavings)}</div>
+        <div class="kpi-sub">Full 3-year run-rate</div>
+      </div>
+      <div class="viz-card">
+        <div class="viz-title">Total Transition Cost</div>
+        <div class="kpi-value" style="font-size:22px;">${fmtM(s.totalTC)}</div>
+        <div class="kpi-sub">${fmtPct(s.tcPct,0)} of gross savings</div>
+      </div>
+      <div class="viz-card">
+        <div class="viz-title">3-Year ROI Multiple</div>
+        <div class="kpi-value green" style="font-size:22px;">${s.roi.toFixed(1)}x</div>
+        <div class="kpi-sub">Break-even in ${s.breakEven} months</div>
+      </div>
+    </div>
+
+    <div class="viz-row cols-2">
+      <div class="viz-card">
+        <div class="viz-title">ROI Multiple by Scenario</div>
+        <div class="viz-subtitle">3-year cumulative net ÷ total transition cost</div>
+        ${roiBars}
+      </div>
+      <div class="viz-card">
+        <div class="viz-title">Break-Even by Scenario</div>
+        <div class="viz-subtitle">Months until cumulative net savings recovers transition cost</div>
+        ${breakevenBars}
+      </div>
+    </div>
+
+    <div class="viz-row cols-2">
+      <div class="viz-card">
+        <div class="viz-title">Net Savings by Year — Scenario ${selected}</div>
+        <div class="viz-subtitle">Gross savings × year capture rate − that year's transition cost</div>
+        ${yearRows}
+      </div>
+      <div class="viz-card">
+        <div class="viz-title">Why Scenario B Is Recommended</div>
+        <div class="viz-subtitle">The efficiency argument</div>
+        <div style="font-size:12px; line-height:1.7; color:var(--text-secondary);">
+          Scenario B wins on <strong>both</strong> efficiency metrics simultaneously: fastest break-even (2 months) <strong>and</strong> highest ROI multiple (21.5x).
+          <br><br>
+          Scenario C generates $92M more in gross savings but spends $16M more in transition costs to get there — and that incremental $16M earns only 5.8x return versus 21.5x on Scenario B's total investment.
+          <br><br>
+          Scenario A is lowest risk but weakest ROI at 14.0x. Scenario B is the efficient frontier.
+        </div>
+      </div>
+    </div>
+
+    <div class="viz-card">
+      <div class="viz-title">Full Scenario Output Table</div>
+      <div class="viz-subtitle">All figures formula-driven from shared assumption cells in the Excel model</div>
+      <table class="pbi-table">
+        <thead><tr><th>Metric</th><th>Scenario A</th><th>Scenario B (Recommended)</th><th>Scenario C</th></tr></thead>
+        <tbody>
+          <tr><td>Vendors Reduced</td><td>${scenarios.A.vendorsFrom} → ${scenarios.A.vendorsTo}</td><td>${scenarios.B.vendorsFrom} → ${scenarios.B.vendorsTo}</td><td>${scenarios.C.vendorsFrom} → ${scenarios.C.vendorsTo}</td></tr>
+          <tr><td>Gross Savings</td><td>${fmtM(scenarios.A.grossSavings)}</td><td>${fmtM(scenarios.B.grossSavings)}</td><td>${fmtM(scenarios.C.grossSavings)}</td></tr>
+          <tr><td>Transition Cost % of Gross</td><td>${fmtPct(scenarios.A.tcPct,0)}</td><td>${fmtPct(scenarios.B.tcPct,0)}</td><td>${fmtPct(scenarios.C.tcPct,0)}</td></tr>
+          <tr><td>Total Transition Cost</td><td>${fmtM(scenarios.A.totalTC)}</td><td>${fmtM(scenarios.B.totalTC)}</td><td>${fmtM(scenarios.C.totalTC)}</td></tr>
+          <tr><td>3-Yr Cumulative Net Savings</td><td>${fmtM(scenarios.A.cumulative)}</td><td>${fmtM(scenarios.B.cumulative)}</td><td>${fmtM(scenarios.C.cumulative)}</td></tr>
+          <tr><td>Net Program Value</td><td>${fmtM(scenarios.A.netProgramValue)}</td><td>${fmtM(scenarios.B.netProgramValue)}</td><td>${fmtM(scenarios.C.netProgramValue)}</td></tr>
+          <tr><td>ROI Multiple</td><td>${scenarios.A.roi.toFixed(1)}x</td><td><strong>${scenarios.B.roi.toFixed(1)}x</strong></td><td>${scenarios.C.roi.toFixed(1)}x</td></tr>
+          <tr><td>Break-Even</td><td>${scenarios.A.breakEven} months</td><td><strong>${scenarios.B.breakEven} months</strong></td><td>${scenarios.C.breakEven} months</td></tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ===================== PAGE: DRILL-THROUGH DETAIL =====================
+function renderDrillthroughPage() {
+  if (!STATE.drillDept) {
+    return `
+      <div class="viz-card">
+        <div class="empty-state">
+          No drill-through context selected yet.<br><br>
+          Go to <strong>Executive Overview</strong> or <strong>Variance Deep-Dive</strong> and click a department bar, table row, or heatmap cell to land here with monthly detail for that selection.
+        </div>
+      </div>`;
+  }
+
+  const dept = STATE.drillDept;
+  const months = DASHBOARD_DATA.months;
+  const categories = DASHBOARD_DATA.departments[dept].categories;
+  const catIdx = STATE.drillCategory !== null ? STATE.drillCategory : 0;
+  const cat = categories[catIdx];
+
+  const catTabs = categories.map((c, i) => `
+    <div class="page-tab" style="background:${i===catIdx ? '#fff' : '#F3F2F1'}; color:${i===catIdx ? 'var(--pbi-navy)' : 'var(--text-secondary)'}; border:1px solid var(--border-light); border-radius:3px; margin-right:4px; padding:6px 12px; font-size:11.5px;" data-drill-cat="${i}">${c.category}</div>
+  `).join('');
+
+  const maxVal = Math.max(...cat.budget, ...cat.actual) * 1.1;
+  const chartW = 760, chartH = 200, padL = 50, padB = 26, padT = 10, padR = 10;
+  const plotW = chartW - padL - padR, plotH = chartH - padT - padB;
+  const xStep = plotW / (months.length - 1);
+
+  function toPoints(arr) {
+    return arr.map((v, i) => `${padL + i*xStep},${padT + plotH - (v/maxVal)*plotH}`).join(' ');
+  }
+
+  const budgetPoints = toPoints(cat.budget);
+  const actualPoints = toPoints(cat.actual);
+
+  const gridLines = [0,0.25,0.5,0.75,1].map(t => {
+    const y = padT + plotH - t*plotH;
+    const val = Math.round(maxVal*t);
+    return `<line x1="${padL}" y1="${y}" x2="${chartW-padR}" y2="${y}" stroke="#EDEBE9" stroke-width="1"/>
+            <text x="${padL-8}" y="${y+3}" font-size="9.5" fill="#8A8886" text-anchor="end">${val}</text>`;
+  }).join('');
+
+  const xLabels = months.map((m, i) => `<text x="${padL + i*xStep}" y="${chartH-8}" font-size="9.5" fill="#8A8886" text-anchor="middle">${m}</text>`).join('');
+
+  const budgetDots = cat.budget.map((v,i) => `<circle cx="${padL+i*xStep}" cy="${padT + plotH - (v/maxVal)*plotH}" r="2.8" fill="#C7CCEE"/>`).join('');
+  const actualDots = cat.actual.map((v,i) => `<circle cx="${padL+i*xStep}" cy="${padT + plotH - (v/maxVal)*plotH}" r="2.8" fill="${DEPT_COLORS[dept]}"/>`).join('');
+
+  const svg = `
+    <svg class="line-chart-svg" viewBox="0 0 ${chartW} ${chartH}">
+      ${gridLines}
+      <polyline points="${budgetPoints}" fill="none" stroke="#C7CCEE" stroke-width="2"/>
+      <polyline points="${actualPoints}" fill="none" stroke="${DEPT_COLORS[dept]}" stroke-width="2.4"/>
+      ${budgetDots}
+      ${actualDots}
+      ${xLabels}
+    </svg>`;
+
+  const monthTableRows = months.map((m, i) => {
+    const b = cat.budget[i], a = cat.actual[i];
+    const v = a - b, vp = v/b;
+    return `<tr>
+      <td>${m}</td><td>${fmtK(b)}</td><td>${fmtK(a)}</td>
+      <td class="${v>=0?'variance-pos':'variance-neg'}">${v>=0 ? '+' : '-'}${fmtK(Math.abs(v))}</td>
+      <td class="${v>=0?'variance-pos':'variance-neg'}">${fmtPctSigned(vp)}</td>
+    </tr>`;
+  }).join('');
+
+  const fyVar = cat.actualFY - cat.budgetFY;
+  const fyVarPct = fyVar / cat.budgetFY;
+
+  return `
+    <div class="breadcrumb">
+      <a data-goto-page="overview">Executive Overview</a> <span>/</span>
+      <span style="color:${DEPT_COLORS[dept]}; font-weight:700;">${dept}</span> <span>/</span>
+      <span>${cat.category}</span>
+    </div>
+
+    <div class="kpi-row" style="grid-template-columns: repeat(3, 1fr);">
+      <div class="kpi-card">
+        <div class="kpi-label">FY Budget</div>
+        <div class="kpi-value" style="font-size:20px;">${fmtK(cat.budgetFY)}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">FY Actual</div>
+        <div class="kpi-value" style="font-size:20px;">${fmtK(cat.actualFY)}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">FY Variance</div>
+        <div class="kpi-value" style="font-size:20px; color:${fyVar>=0?'var(--pbi-red)':'var(--pbi-green)'};">${fmtPctSigned(fyVarPct)}</div>
+      </div>
+    </div>
+
+    <div style="display:flex; margin-bottom:12px; flex-wrap:wrap;">${catTabs}</div>
+
+    <div class="viz-card" style="margin-bottom:14px;">
+      <div class="viz-title">${dept} — ${cat.category}: Budget vs. Actual</div>
+      <div class="viz-subtitle">Monthly trend, FY2022</div>
+      ${svg}
+      <div class="legend-row">
+        <span><span class="legend-dot" style="background:#C7CCEE"></span>Budget</span>
+        <span><span class="legend-dot" style="background:${DEPT_COLORS[dept]}"></span>Actual</span>
+      </div>
+    </div>
+
+    <div class="viz-card">
+      <div class="viz-title">Monthly Detail</div>
+      <table class="pbi-table">
+        <thead><tr><th>Month</th><th>Budget</th><th>Actual</th><th>Variance $</th><th>Variance %</th></tr></thead>
+        <tbody>${monthTableRows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ===================== EVENT HANDLERS (per-render) =====================
+function attachPageHandlers() {
+  document.querySelectorAll('[data-dept]').forEach(el => {
+    el.addEventListener('click', () => {
+      const dept = el.dataset.dept;
+      STATE.selectedDept = STATE.selectedDept === dept ? null : dept;
+      renderAll();
+    });
+  });
+
+  document.querySelectorAll('[data-goto-drill]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      STATE.drillDept = STATE.selectedDept || Object.keys(DASHBOARD_DATA.departments)[0];
+      STATE.drillCategory = 0;
+      switchToPage('drillthrough');
+    });
+  });
+
+  document.querySelectorAll('table.matrix-table td[data-dept]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      STATE.drillDept = el.dataset.dept;
+      STATE.drillCategory = parseInt(el.dataset.cat, 10);
+      switchToPage('drillthrough');
+    });
+  });
+
+  document.querySelectorAll('[data-scenario]').forEach(el => {
+    el.addEventListener('click', () => {
+      STATE.selectedScenario = el.dataset.scenario;
+      renderCanvas();
+    });
+  });
+
+  document.querySelectorAll('[data-drill-cat]').forEach(el => {
+    el.addEventListener('click', () => {
+      STATE.drillCategory = parseInt(el.dataset.drillCat, 10);
+      renderCanvas();
+    });
+  });
+
+  document.querySelectorAll('[data-goto-page]').forEach(el => {
+    el.addEventListener('click', () => {
+      switchToPage(el.dataset.gotoPage);
+    });
+  });
+}
+
+function switchToPage(pageName) {
+  document.querySelectorAll('.page-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.page === pageName);
+  });
+  STATE.currentPage = pageName;
+  renderCanvas();
+}
+
+// ===================== INIT =====================
+renderAll();
+
+</script>
+</body>
+</html>
